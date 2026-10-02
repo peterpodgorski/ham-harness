@@ -24,4 +24,7 @@ tools/**/target/
 # Temp
 temp/
 
+# The app backlog lives with the app, not the harness
+/todo/
+
 .env
