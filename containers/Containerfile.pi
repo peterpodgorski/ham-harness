@@ -59,7 +59,7 @@ ENV PATH=/home/pi/.cargo/bin:/home/pi/.npm-global/bin:/home/pi/.local/bin:$PATH
 RUN rustup default stable
 
 # Install pi-coding-agent
-RUN npm install -g @earendil-works/pi-coding-agent \
+RUN npm install -g @earendil-works/pi-coding-agent@latest \
     && npm cache clean --force
 
 # Quint (formal spec language + simulator + Apalache verifier) — the behavioural
