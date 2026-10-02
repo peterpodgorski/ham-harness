@@ -95,5 +95,6 @@ exec podman run \
     --workdir /workspace \
     --env "TERM=${TERM:-xterm-256color}" \
     --env "COLORTERM=${COLORTERM:-truecolor}" \
+    --env "CONTEXT=${CONTEXT:-}" \
     "${IMAGE}" \
     "$@"

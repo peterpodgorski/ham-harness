@@ -49,7 +49,8 @@ obstacle to route around.
 
 Contexts and enabled gates come from `app/architecture/<context>/pipeline.yaml`
 resolved against `pipeline/gates.yaml`; run **only** the enabled gates of the
-named context. The context defaults to `expense_tracking` when unstated.
+named context. The context is configuration (`CONTEXT`, e.g. in `.env`); a
+stage must name one when it is unset.
 
 ## How to establish an anchor
 

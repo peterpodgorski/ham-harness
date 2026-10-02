@@ -1,6 +1,6 @@
 IMAGE ?= harness-pi:latest
 PODMAN ?= podman
-CONTEXT ?= expense_tracking
+CONTEXT ?=
 
 # Local configuration (gitignored .env), e.g. APP_REPO and APP_BIN. Loaded here
 # so `make` picks it up without repeating it on every invocation.
@@ -31,6 +31,7 @@ CONTAINER_RUN = test -n "$(APP_REPO)" || { echo "APP_REPO is not set; point it a
 	--volume "$(CURDIR):/workspace:rw" \
 	--volume "$(APP_REPO):/workspace/app:rw" \
 	--volume "$(ALLOY_REPO):/workspace/alloy-connect:ro" \
+	--env "PIPELINE_CONTEXT=$(CONTEXT)" \
 	--workdir /workspace \
 	--entrypoint /bin/bash \
 	$(IMAGE)
@@ -92,10 +93,10 @@ arch-db: ## Regenerate the as-built database model from the adapter DDL (determi
 pipeline-check: ## Validate the pipeline registry and every context configuration
 	$(CONTAINER_RUN) scripts/pipeline.sh check
 
-pipeline-plan: ## Print the resolved gate set for CONTEXT=<context> (default expense_tracking)
+pipeline-plan: ## Print the resolved gate set for CONTEXT=<context>
 	$(CONTAINER_RUN) scripts/pipeline.sh plan --context $(CONTEXT)
 
-pipeline-run: ## Run the configured automated gates for CONTEXT=<context> (default expense_tracking)
+pipeline-run: ## Run the configured automated gates for CONTEXT=<context>
 	$(CONTAINER_RUN) scripts/pipeline.sh run --context $(CONTEXT)
 
 restructure-check: ## Verify stories/ and lexicon/ are unchanged (architecture-scope refactor invariant)

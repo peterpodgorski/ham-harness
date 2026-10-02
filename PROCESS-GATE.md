@@ -51,7 +51,8 @@ Any one of these is a legal entry point.
 
 Which gates actually run inside a stage comes from the context's
 `app/architecture/<context>/pipeline.yaml`, resolved against
-`pipeline/gates.yaml`. The context defaults to `expense_tracking` when unstated.
+`pipeline/gates.yaml`. The context is configuration (`CONTEXT`, e.g. in `.env`);
+it is required when unstated.
 
 ## How to use it
 
@@ -72,7 +73,8 @@ stories the work also touches:
 - `/anchor gherkin adding-expenses,view-projection` — cross-story work.
 - `/anchor harness` — repository tooling only.
 - `/anchor restructure expense_tracking` — an architecture-scope refactor of a
-  bounded context; the context defaults to `expense_tracking` when omitted.
+  bounded context; `CONTEXT` supplies the context when omitted, and is required
+  if unset.
 - `/anchor restructure expense_tracking,investments` — a refactor that spans
   contexts; the first is primary. A context that does not exist yet is reported
   as a warning and treated as new.

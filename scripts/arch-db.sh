@@ -7,7 +7,11 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 APP="${APP:-app}"
 cd "${ROOT}"
 
-CONTEXT="${PIPELINE_CONTEXT:-expense_tracking}"
+CONTEXT="${PIPELINE_CONTEXT:-${CONTEXT:-}}"
+if [[ -z "${CONTEXT}" ]]; then
+  echo "FAIL: no bounded context; set CONTEXT (or PIPELINE_CONTEXT)" >&2
+  exit 1
+fi
 
 python3 tools/arch/extract_schema.py --src "${APP}/src/${CONTEXT}/adapters/sqlite_store.rs" --context "${CONTEXT}" > "${APP}/architecture/${CONTEXT}/database-asbuilt.json"
 python3 tools/arch/schema_render.py --model "${APP}/architecture/${CONTEXT}/database-asbuilt.json" --out "${APP}/architecture/${CONTEXT}/database.md"

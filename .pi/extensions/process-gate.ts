@@ -41,7 +41,14 @@ const STAGES = [
 ] as const;
 type Stage = (typeof STAGES)[number];
 
-const DEFAULT_CONTEXT = "expense_tracking";
+/**
+ * The configured default bounded context, read from the environment (`.env`,
+ * surfaced by run-pi.sh). There is no hardcoded default: when unset, a stage
+ * that needs a context must name one.
+ */
+function configuredContext(): string {
+	return (process.env.CONTEXT ?? process.env.PIPELINE_CONTEXT ?? "").trim();
+}
 const ANCHOR_TYPE = "process-anchor";
 const STORY_RE = /^[a-z0-9][a-z0-9-]*$/;
 /** Bounded-context slugs may also contain underscores (e.g. expense_tracking). */
@@ -136,7 +143,7 @@ const AnchorParams = Type.Object({
 		Type.String({ description: "single-story shorthand for `stories` (comma/space separated)" }),
 	),
 	context: Type.Optional(
-		Type.String({ description: `bounded context (default ${DEFAULT_CONTEXT}); may be comma/space separated` }),
+		Type.String({ description: "bounded context (required unless CONTEXT is set); may be comma/space separated" }),
 	),
 	contexts: Type.Optional(
 		Type.Array(Type.String(), {
@@ -226,7 +233,13 @@ function resolveAnchor(
 
 	if (stage === "restructure") {
 		let contexts = contextList(params.contexts, params.context);
-		if (contexts.length === 0) contexts = [DEFAULT_CONTEXT];
+		if (contexts.length === 0) {
+			const fallback = configuredContext();
+			if (!fallback) {
+				return { ok: false, error: "no bounded context: name one (context/contexts) or set CONTEXT." };
+			}
+			contexts = [fallback];
+		}
 		for (const context of contexts) {
 			if (!CONTEXT_RE.test(context)) {
 				return { ok: false, error: `invalid context slug "${context}" (expected [a-z0-9][a-z0-9_-]*).` };
@@ -276,7 +289,10 @@ function resolveAnchor(
 		}
 	}
 
-	const context = (params.context ?? "").trim() || DEFAULT_CONTEXT;
+	const context = (params.context ?? "").trim() || configuredContext();
+	if (!context) {
+		return { ok: false, error: "no bounded context: pass `context` or set CONTEXT." };
+	}
 	if (!relExists(cwd, `app/architecture/${context}/pipeline.yaml`)) {
 		return {
 			ok: false,

@@ -10,7 +10,11 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 APP="${APP:-app}"
 cd "${ROOT}"
 
-CONTEXT="${PIPELINE_CONTEXT:-expense_tracking}"
+CONTEXT="${PIPELINE_CONTEXT:-${CONTEXT:-}}"
+if [[ -z "${CONTEXT}" ]]; then
+  echo "FAIL: no bounded context; set CONTEXT (or PIPELINE_CONTEXT)" >&2
+  exit 1
+fi
 COMMITTED="${APP}/architecture/${CONTEXT}/class.md"
 if [[ ! -f "${COMMITTED}" ]]; then
   echo "FAIL: ${COMMITTED} does not exist (as-built model is missing)" >&2

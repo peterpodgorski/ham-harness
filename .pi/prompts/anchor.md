@@ -10,9 +10,9 @@ Arguments: stage = `$1`; stories = `${@:2}`.
 - If the stage is `harness`, call the tool with just the stage (no stories).
 - If the stage is `restructure`, call the tool with the stage and the bounded
   context(s) from `${@:2}` (comma/space separated; the first is primary, and a
-  split names the existing context plus any new ones), defaulting to
-  `expense_tracking`; stories are not required — they are frozen for the whole
-  task.
+  split names the existing context plus any new ones), or the configured
+  `CONTEXT` when none is given; stories are not required — they are frozen for
+  the whole task.
 - Otherwise, if no story was given, **do not** call the tool — ask me for at
   least one story.
 
@@ -22,11 +22,12 @@ Otherwise call the `set_process_anchor` tool exactly once with:
 - `stories`: the story slugs from `${@:2}`, split on commas or spaces (omit for
   `harness` and `restructure`)
 - `contexts`: for `restructure`, the bounded context slugs from `${@:2}`, split
-  on commas or spaces (the first is primary; defaults to `expense_tracking`)
+  on commas or spaces (the first is primary; defaults to the configured
+  `CONTEXT`)
 
 Name **every** story this task will touch; the first is primary. Use the
-`context` argument only if I named a bounded context other than the default
-`expense_tracking`.
+`context` argument if I named a bounded context other than the configured
+`CONTEXT`.
 
 Then report the anchor the tool resolved (including any
 missing-upstream-artifact note) and proceed only within that stage. If the tool
