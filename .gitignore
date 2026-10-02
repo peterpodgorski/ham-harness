@@ -1,0 +1,27 @@
+.DS_Store
+.idea/
+
+# The app is a separate git repository, mounted at app/ (see containers/run-pi.sh).
+/app/
+
+# alloy-connect is a separate git repository, mounted at alloy-connect/ (see containers/run-pi.sh).
+/alloy-connect/
+
+# Quint/Apalache byproducts (quint verify)
+_apalache-out/
+
+# Python tooling artifacts
+__pycache__/
+*.pyc
+.venv/
+
+# Alloy exec byproducts (default output directory takes the spec stem)
+/domain/
+
+# Rust build output for tools
+tools/**/target/
+
+# Temp
+temp/
+
+.env

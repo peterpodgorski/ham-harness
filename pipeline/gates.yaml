@@ -1,0 +1,118 @@
+# Pipeline gate registry (repo-wide).
+#
+# This is the machine-readable projection of the process: the closed catalogue
+# of mechanisms a bounded context may enable. Gate ids are *mechanism-level*
+# (not tool names) so a project can swap the tool that implements a mechanism
+# without renaming the gate. The per-context config
+# (`app/architecture/<context>/pipeline.yaml`) selects which are enabled; profiles
+# (`pipeline/profiles.yaml`) are named bundles.
+#
+# Validated by `tools/pipeline/pipeline.py check` and resolved by
+# `... plan` / `... run`. Unknown fields are rejected, so the registry cannot
+# silently grow a meaning.
+#
+# Fields:
+#   phase        one of `phases`; gates run in phase order
+#   description  what the mechanism establishes
+#   required     always on; a context config may not disable it
+#   kind         automated (default) or manual (a skill produces the evidence)
+#   cost         fast | medium | slow (informational; there is no bypass)
+#   depends      gate ids that must also be enabled
+#   applies      glob (with `{context}`); enabling the gate fails if nothing matches
+#   params       typed parameters a context may set
+#   command      shell command run with PIPELINE_CONTEXT / PIPELINE_PARAM_* set
+version: 1
+
+phases: [gherkin, formalize, bdd, audit, explain]
+
+gates:
+  vocabulary:
+    phase: gherkin
+    description: Gherkin features speak the approved lexicon
+    required: true
+    cost: fast
+    command: "scripts/lexicon-check.sh"
+
+  acceptance:
+    phase: bdd
+    description: Cucumber acceptance scenarios run green (in-memory and SQLite)
+    required: true
+    cost: fast
+    depends: [vocabulary]
+    command: "scripts/test-bdd.sh"
+
+  derived_conformance:
+    phase: bdd
+    description: Derived read models match the lexicon relations via the derive boundary
+    required: true
+    cost: medium
+    depends: [vocabulary]
+    command: "scripts/lexicon-conformance.sh"
+
+  model_behaviour:
+    phase: formalize
+    description: Quint behavioural models conform to the lexicon and verify
+    cost: slow
+    depends: [vocabulary]
+    command: "scripts/lexicon-check-quint.sh"
+
+  scenario_coverage:
+    phase: formalize
+    description: Quint actions trace to the Gherkin, and every scenario replays as a model path
+    cost: medium
+    depends: [vocabulary]
+    command: "scripts/scenario-coverage.sh"
+
+  model_structure:
+    phase: formalize
+    description: Alloy domain model conforms, verifies and is non-vacuous
+    cost: slow
+    depends: [vocabulary]
+    applies: "app/architecture/{context}/domain.als"
+    command: "scripts/alloy-check.sh"
+
+  property:
+    phase: bdd
+    description: Property tests exercise invariants over generated inputs
+    cost: medium
+    command: "scripts/property.sh"
+
+  mbt_behaviour:
+    phase: bdd
+    description: Replay Quint-generated traces against the app and diff view state
+    cost: slow
+    depends: [model_behaviour]
+    command: "scripts/mbt-quint.sh"
+
+  mbt_structure:
+    phase: bdd
+    description: Replay Alloy-generated traces against the app and diff domain structure
+    cost: slow
+    depends: [model_structure]
+    applies: "app/architecture/{context}/domain.als"
+    command: "scripts/mbt-alloy.sh"
+
+  mutation:
+    phase: bdd
+    description: Mutation kill-rate meets the configured threshold
+    cost: slow
+    params:
+      threshold:
+        type: number
+        default: 1.0
+    command: "scripts/mutation.sh"
+
+  audit:
+    phase: audit
+    description: Security audit and formal-equivalence review recorded per story
+    required: true
+    kind: manual
+    depends: [acceptance, derived_conformance]
+
+  as_built:
+    phase: explain
+    description: As-built class model is deterministic and current
+    required: true
+    cost: fast
+    applies: "app/architecture/{context}/class.md"
+    command: "scripts/arch-check.sh"

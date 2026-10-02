@@ -1,0 +1,29 @@
+# Named gate bundles. A context config may `extends:` one profile and then
+# override individual gates. Required gates are injected by the resolver and
+# cannot be disabled by a profile or a context.
+#
+# Profiles list only the optional gates they turn on; anything not listed (and
+# not required) is off.
+version: 1
+
+profiles:
+  # Only the mandatory guardrails (vocabulary, acceptance, derived conformance,
+  # audit, as-built). No model checking, no MBT, no property, no mutation.
+  minimal: {}
+
+  # The structural confidence set: an Alloy domain model with its MBT, plus
+  # property tests. Quint behaviour modelling, its MBT and mutation are off.
+  standard:
+    model_structure: true
+    property: true
+    mbt_structure: true
+
+  # Everything the project currently offers.
+  full:
+    model_behaviour: true
+    scenario_coverage: true
+    model_structure: true
+    property: true
+    mbt_behaviour: true
+    mbt_structure: true
+    mutation: true

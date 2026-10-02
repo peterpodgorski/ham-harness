@@ -1,0 +1,116 @@
+# Self-contained image for the pi coding agent.
+# Build from the project root: podman build -t harness-pi -f containers/Containerfile.pi .
+#
+# Base: Debian trixie (glibc 2.41). The prebuilt Quint Rust evaluator needs
+# glibc >= 2.39, so bookworm is too old. trixie's default-jre-headless is
+# OpenJDK 21, which satisfies Apalache (quint verify).
+FROM rust:1-slim-trixie AS builder
+
+# Install system deps
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        gcc \
+        git \
+        curl \
+        ca-certificates \
+        default-jre-headless \
+        pkg-config \
+        libssl-dev \
+        graphviz \
+        python3 \
+        python3-pip \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Install Node.js (required for pi-coding-agent)
+RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
+    && apt-get install -y --no-install-recommends nodejs \
+    && rm -rf /var/lib/apt/lists/*
+
+# Alloy (relational / domain model checker). Alloy 6.2 added the `exec`
+# sub-command, which emits lasso traces as XML and accepts `expect` annotations
+# so the CLI exit code is a gate. The distribution is a portable Java jar (the
+# `default-jre-headless` above is all it needs); on aarch64 the native solvers
+# are absent and Alloy falls back to SAT4J, which is fine for small models.
+ARG ALLOY_VERSION=6.2.0
+RUN mkdir -p /usr/local/lib/alloy \
+    && curl -fsSL -o /usr/local/lib/alloy/org.alloytools.alloy.dist.jar \
+        "https://github.com/AlloyTools/org.alloytools.alloy/releases/download/v${ALLOY_VERSION}/org.alloytools.alloy.dist.jar" \
+    && printf 'one sig A { x: one Int }\nrun { some A } for 1 A, 4 Int expect 1\ncheck { some A } for 1 A, 4 Int expect 0\n' > /tmp/alloy-smoke.als \
+    && java -jar /usr/local/lib/alloy/org.alloytools.alloy.dist.jar \
+         exec -t none -o /tmp/alloy-smoke-out -f /tmp/alloy-smoke.als \
+    && rm -rf /tmp/alloy-smoke.als /tmp/alloy-smoke-out
+
+# Create pi user
+ARG USER_UID=1000
+ARG USER_GID=1000
+RUN groupadd --gid "${USER_GID}" pi \
+    && useradd --uid "${USER_UID}" --gid "${USER_GID}" --create-home --shell /bin/bash pi \
+    && mkdir -p /home/pi/.pi
+
+USER pi
+ENV CARGO_HOME=/home/pi/.cargo
+ENV RUSTUP_HOME=/home/pi/.rustup
+ENV NPM_CONFIG_PREFIX=/home/pi/.npm-global
+ENV PATH=/home/pi/.cargo/bin:/home/pi/.npm-global/bin:/home/pi/.local/bin:$PATH
+
+# Ensure a default Rust toolchain exists for the pi user
+RUN rustup default stable
+
+# Install pi-coding-agent
+RUN npm install -g @earendil-works/pi-coding-agent \
+    && npm cache clean --force
+
+# Quint (formal spec language + simulator + Apalache verifier) — the behavioural
+# model language for the /formalize hard gate.
+#   - `quint run`  : random simulation + invariant checks + ITF traces (MBT)
+#   - `quint verify`: exhaustive checks (safety, deadlock, liveness) via Apalache
+#   - `quint parse` : JSON AST, used by the lexicon conformance gate
+# The Rust evaluator and Apalache are fetched on first use; warm both here so the
+# gates are fast and the image is self-contained/offline-capable.
+ARG QUINT_VERSION=0.33.0
+RUN npm install -g "@informalsystems/quint@${QUINT_VERSION}" \
+    && npm cache clean --force
+
+RUN printf "module smoke {\n  var x: int\n  action init = x' = 0\n  action step = x' = x + 1\n  val inv = x >= 0\n}\n" > /tmp/quint-smoke.qnt \
+    && quint typecheck /tmp/quint-smoke.qnt \
+    && quint run /tmp/quint-smoke.qnt --max-steps 3 --max-samples 5 --verbosity 0 \
+    && (quint verify /tmp/quint-smoke.qnt --max-steps 3 --invariant inv --verbosity 0 \
+        || echo "WARN: Apalache warm-up did not complete; first 'quint verify' will retry") \
+    && rm /tmp/quint-smoke.qnt
+
+# Install Rust tooling for the BDD-as-DSL process (separate layers for caching).
+#   - cargo-audit   : security advisory scanning
+#   - cargo-deny    : license / advisory policy enforcement
+#   - cargo-mutants : mutation testing
+RUN cargo install cargo-audit \
+    && cargo install cargo-deny \
+    && cargo install cargo-mutants \
+    && rm -rf /home/pi/.cargo/registry/cache
+
+# Kani (bounded model checking) — distributed via GitHub, not crates.io.
+# Install from latest release; fallback gracefully if architecture mismatch.
+ARG KANI_VERSION=0.54.0
+RUN curl -fsSL -o /tmp/kani.tgz \
+        "https://github.com/model-checking/kani/releases/download/kani-${KANI_VERSION}/cargo-kani-${KANI_VERSION}-x86_64-unknown-linux-gnu.tar.gz" \
+    && tar -xzf /tmp/kani.tgz -C "${CARGO_HOME}/bin/" \
+    && rm /tmp/kani.tgz \
+    || echo "⚠ Kani install skipped — install manually if needed"
+
+# Install Python tooling for the LLM+Gherkin+formal-methods pipeline.
+# This tooling is deliberately polyglot and LANGUAGE-AGNOSTIC: the Rust app must
+# not dictate how the specification pipeline is implemented. Rebuild the image
+# to change any of these (see the tooling/container policy in PROCESS.md).
+#   - diagrams / graphviz : C4 / UML generation (/explain)
+#   - gherkin-official    : canonical Gherkin parser (lexicon / consistency gate)
+#   - PyYAML              : lexicon files are YAML (language-neutral data)
+RUN python3 -m pip install --user --break-system-packages \
+        diagrams \
+        graphviz \
+        gherkin-official==42.0.1 \
+        PyYAML==6.0.3 \
+    && rm -rf /home/pi/.cache/pip
+
+WORKDIR /workspace
+ENTRYPOINT ["pi"]
