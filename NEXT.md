@@ -9,7 +9,10 @@ state, not memory. Delete it when the list is empty._
 - Harness `main`: `672fccb` — pipeline runs tee to a log; GC override reverted
   (earlier: `0b124e5` report polish, `6587c93` scaffold kind, `b8391d7`
   require_reason scope, `364b597` the two mechanisms).
-- App `main`: `36a7b27` — every Quint `system` escape hatch justified.
+- App `main`: `deebda9` — escape hatches justified, and `reviewed_through:
+  models` recorded (`review_depth_ok: true` against `minimum_from_threat:
+  lexicon`). The record distinguishes `Verified-Through: code` (what the
+  machine checked) from `Reviewed-Through: models` (what a person read).
 - `model_discipline` is **strict** for `expense_tracking` (`require_reason`,
   `strict_exemptions`); 39/39 Quint system actions carry a reason.
 - Attestation recorded at `app/attestations/expense_tracking.json`
@@ -23,11 +26,9 @@ state, not memory. Delete it when the list is empty._
 - [x] **Run the slow gates** — `make pipeline-run CONTEXT=expense_tracking`:
       all gates pass (the earlier failure was the harness GC override, now
       reverted).
-- [ ] **Record the human review depth** (the gauge is unset until then):
-      `scripts/attest.sh emit --context expense_tracking --reviewed-through <layer> \
-         --out app/attestations/expense_tracking.json`
-      then `make attest-check CONTEXT=expense_tracking`. Layers, shallowest
-      first: `gherkin | lexicon | models | code`. → `/anchor formalize`
+- [x] **Record the human review depth** — recorded `models`; `review_depth_ok:
+      true`. The experiment: the code was deliberately not read, and is not
+      claimed. → `/anchor formalize`
 - [ ] **Commit-time attestation workflow** — decide how the trailer
       (`scripts/attest.sh emit --format trailer`) enters the app's commit
       history (manual paste, hook, or CI check).
