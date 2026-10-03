@@ -12,6 +12,22 @@ non-deterministic step with a mechanical, replayable check.
 > If your process relies on careful consideration, prepare to be constantly
 > disappointed. — Łukasz Langa
 
+## Status
+
+HAM is an experiment, developed alongside a single reference app (a household
+budgeting ledger) that exercises it end to end. The process, the gate registry,
+and the attestation mechanism are stable enough to run in CI; the skill set and
+the per-context profiles are still moving. Expect the shape of the harness to
+change as more of the reference app is put through it.
+
+**HAM was not created using HAM**. Obviously. HAM was essentially vibe coded and "the
+proof is in the pudding" of the app I'm writing using it. The app is very small
+and simple, but the point here is an experiment bordering on proof of concept,
+not a production-grade tool for engineering nuclear power plant control systems.
+**You've been warned**.
+That said, developing HAM with HAM is a natural future step, although there are some
+changes that need to happen before it's possible without creating a singularity.
+
 ## The problem
 
 An LLM generates code far faster than a human can read it, so "programming
@@ -249,14 +265,6 @@ make model-discipline                     # report every declared escape hatch
 make attest        CONTEXT=your_context   # write the verification attestation
 make attest-check  CONTEXT=your_context   # fail if the attestation drifted
 ```
-
-## Status
-
-HAM is an experiment, developed alongside a single reference app (a household
-budgeting ledger) that exercises it end to end. The process, the gate registry,
-and the attestation mechanism are stable enough to run in CI; the skill set and
-the per-context profiles are still moving. Expect the shape of the harness to
-change as more of the reference app is put through it.
 
 ## Further reading
 
