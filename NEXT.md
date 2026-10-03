@@ -6,26 +6,23 @@ state, not memory. Delete it when the list is empty._
 
 ## State (as of commit time)
 
-- Harness `main`: `0b124e5` — residual-risk report lists only un-justified
-  residue (previous: `6587c93` scaffold kind, `b8391d7` require_reason scope,
-  `364b597` the two mechanisms).
+- Harness `main`: `672fccb` — pipeline runs tee to a log; GC override reverted
+  (earlier: `0b124e5` report polish, `6587c93` scaffold kind, `b8391d7`
+  require_reason scope, `364b597` the two mechanisms).
 - App `main`: `36a7b27` — every Quint `system` escape hatch justified.
 - `model_discipline` is **strict** for `expense_tracking` (`require_reason`,
   `strict_exemptions`); 39/39 Quint system actions carry a reason.
 - Attestation recorded at `app/attestations/expense_tracking.json`
   (`verified_through: bdd`, `minimum_from_threat: lexicon`,
   digest `sha256:8dd5d38…`).
-- **Not yet run:** the slow gates — `model_behaviour`, `scenario_coverage`,
-  `model_structure`, `acceptance`, `derived_conformance`, `property`,
-  `mbt_behaviour`, `mbt_structure`.
+- **The full pipeline passes** — `make pipeline-run CONTEXT=expense_tracking`,
+  slow gates included. Latest log: `pipeline-logs/expense_tracking.log`.
 
 ## Next
 
-- [ ] **Run the slow gates** — `make pipeline-run CONTEXT=expense_tracking`.
-      The full run is tee'd to `pipeline-logs/expense_tracking.log`, so a
-      failing gate's detail survives a closed terminal. The lexicon annotations
-      were the only app-spec change; this confirms the model/Alloy/MBT gates
-      still pass. If one fails → `/anchor formalize <story>` and fix.
+- [x] **Run the slow gates** — `make pipeline-run CONTEXT=expense_tracking`:
+      all gates pass (the earlier failure was the harness GC override, now
+      reverted).
 - [ ] **Record the human review depth** (the gauge is unset until then):
       `scripts/attest.sh emit --context expense_tracking --reviewed-through <layer> \
          --out app/attestations/expense_tracking.json`
