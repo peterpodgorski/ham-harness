@@ -1,0 +1,64 @@
+# NEXT — resume point
+
+_Clean stopping point: both repos committed, both trees clean, all fast gates
+pass. Nothing is half-written. This file is the rope across a context boundary —
+state, not memory. Delete it when the list is empty._
+
+## State (as of commit time)
+
+- Harness `main`: `0b124e5` — residual-risk report lists only un-justified
+  residue (previous: `6587c93` scaffold kind, `b8391d7` require_reason scope,
+  `364b597` the two mechanisms).
+- App `main`: `36a7b27` — every Quint `system` escape hatch justified.
+- `model_discipline` is **strict** for `expense_tracking` (`require_reason`,
+  `strict_exemptions`); 39/39 Quint system actions carry a reason.
+- Attestation recorded at `app/attestations/expense_tracking.json`
+  (`verified_through: bdd`, `minimum_from_threat: lexicon`,
+  digest `sha256:8dd5d38…`).
+- **Not yet run:** the slow gates — `model_behaviour`, `scenario_coverage`,
+  `model_structure`, `acceptance`, `derived_conformance`, `property`,
+  `mbt_behaviour`, `mbt_structure`.
+
+## Next
+
+- [ ] **Run the slow gates** — `make pipeline-run CONTEXT=expense_tracking`.
+      The lexicon annotations were the only app-spec change; this confirms the
+      model/Alloy/MBT gates still pass. If one fails → `/anchor formalize
+      <story>` and fix.
+- [ ] **Record the human review depth** (the gauge is unset until then):
+      `scripts/attest.sh emit --context expense_tracking --reviewed-through <layer> \
+         --out app/attestations/expense_tracking.json`
+      then `make attest-check CONTEXT=expense_tracking`. Layers, shallowest
+      first: `gherkin | lexicon | models | code`. → `/anchor formalize`
+- [ ] **Commit-time attestation workflow** — decide how the trailer
+      (`scripts/attest.sh emit --format trailer`) enters the app's commit
+      history (manual paste, hook, or CI check).
+
+## Harness polish (`/anchor harness`)
+
+- [ ] Wire `REVIEWED=<layer>` into the `make attest` target (currently the
+      script must be called directly).
+- [ ] Decide whether the attestation should pin **harness tool hashes** too
+      (today it pins the spec + the gate registry/profiles, not `attest.py` /
+      `discipline.py`).
+- [ ] Commit the **residual-risk manifest** (`discipline.py --json --out`)
+      alongside the attestation, or fold it into the trailer.
+
+## Design calls (yours)
+
+- [ ] Per-story `minimum_from_threat` instead of the context-level value — the
+      threat narrative is per story, so the honest floor probably is too.
+- [ ] The **regeneration ratchet**: make "every bug found by regenerating the
+      code becomes a scenario or a lexicon relation" a checked rule, not only a
+      principle in `PROCESS.md`. This is what keeps writing-for-deletion
+      monotonic.
+- [ ] Decide whether `view-history` and `adding-expenses` (no formal spec
+      today) should get Quint/Alloy models.
+
+## Rope mechanics
+
+- The anchor is persisted as a session entry; `/process` shows it, `/process
+  clear` drops it. It survives compaction and follows the active branch.
+- Changing stage or touching a story not in the anchor requires a new anchor:
+  `/anchor <stage> <story>[,<story>]`, or `/anchor harness`.
+- Agent never runs `make`; per the process, gates are the user's interface.
