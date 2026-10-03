@@ -301,9 +301,6 @@ def build_manifest(lexicon_dir: Path, context: str, require_reason: bool, strict
         "trace_exemptions": len(trace),
         "unjustified_trace_exemptions": sum(1 for e in trace if not e["justified"]),
         "alloy_system_decls": len(sigs) + len(fields),
-        "unjustified_alloy_system_decls": sum(
-            1 for d in [*sigs, *fields] if not d["justified"]
-        ),
         "vacuity_exemptions": len(vacuity),
         "unjustified_vacuity_exemptions": sum(1 for e in vacuity if not e["justified"]),
     }
@@ -319,33 +316,41 @@ def build_manifest(lexicon_dir: Path, context: str, require_reason: bool, strict
 
 
 def render_text(manifest: dict) -> None:
+    """Print only the *un-justified* residue, then the summary.
+
+    Justified escape hatches and exemptions are legitimate (they carry a
+    reason); they belong in the JSON manifest, not in a wall of notes on every
+    gate run. Alloy `system` declarations are structural placeholders, so they
+    are counted, never listed.
+    """
     context = manifest["context"]
     for spec_key, spec in manifest["quint"].items():
         for action in spec["system_actions"]:
-            reason = action["reason"] or "<no reason>"
-            print(
-                f"note: quint {spec_key}: system action {action['name']!r} "
-                f"[{action['kind']}] — {reason}"
-            )
+            if not action["justified"]:
+                print(
+                    f"note: quint {spec_key}: system action {action['name']!r} "
+                    f"[{action['kind']}] has no reason"
+                )
         for exemption in [*spec["coverage_exemptions"], *spec["trace_exemptions"]]:
-            reason = exemption["reason"] or "<no reason>"
-            print(f"note: quint {spec_key}: exemption {exemption['name']!r} — {reason}")
+            if not exemption["justified"]:
+                print(
+                    f"note: quint {spec_key}: exemption {exemption['name']!r} has no reason"
+                )
     for spec_key, spec in manifest["alloy"].items():
-        for decl in [*spec["system_sigs"], *spec["system_fields"]]:
-            label = decl.get("field") or decl["name"]
-            print(f"note: alloy {spec_key}: system declaration {label!r}")
         for exemption in spec["vacuity_exemptions"]:
-            reason = exemption["reason"] or "<no reason>"
-            print(f"note: alloy {spec_key}: vacuity exemption {exemption['name']!r} — {reason}")
+            if not exemption["justified"]:
+                print(
+                    f"note: alloy {spec_key}: vacuity exemption {exemption['name']!r} has no reason"
+                )
 
     s = manifest["summary"]
     print(
         f"note: residual risk in {context}: "
-        f"{s['unjustified_system_actions']}/{s['system_actions']} system action(s) un-justified, "
-        f"{s['unjustified_coverage_exemptions']}/{s['coverage_exemptions']} coverage exemption(s) un-justified, "
-        f"{s['unjustified_trace_exemptions']}/{s['trace_exemptions']} trace exemption(s) un-justified, "
-        f"{s['unjustified_alloy_system_decls']}/{s['alloy_system_decls']} alloy system declaration(s) un-justified, "
-        f"{s['unjustified_vacuity_exemptions']}/{s['vacuity_exemptions']} vacuity exemption(s) un-justified"
+        f"{s['unjustified_system_actions']}/{s['system_actions']} quint system action(s) without a reason, "
+        f"{s['unjustified_coverage_exemptions']}/{s['coverage_exemptions']} coverage exemption(s) without a reason, "
+        f"{s['unjustified_trace_exemptions']}/{s['trace_exemptions']} trace exemption(s) without a reason, "
+        f"{s['unjustified_vacuity_exemptions']}/{s['vacuity_exemptions']} vacuity exemption(s) without a reason; "
+        f"{s['alloy_system_decls']} alloy structural placeholder(s) declared"
     )
 
 
@@ -356,7 +361,7 @@ def main() -> int:
     parser.add_argument(
         "--require-reason",
         action="store_true",
-        help="fail on `system: true` without a declared reason",
+        help="fail on a Quint `system` action without a declared reason",
     )
     parser.add_argument(
         "--strict-exemptions",
