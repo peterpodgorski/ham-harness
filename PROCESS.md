@@ -94,7 +94,7 @@ are always listed and are enforced by their skill.
 |---|---|
 | `make pipeline-check` | validate the registry, profiles and every context config |
 | `make pipeline-plan CONTEXT=<context>` | print the resolved gate set (phase, kind, cost, source) |
-| `make pipeline-run CONTEXT=<context>` | run the enabled automated gates in phase order |
+| `make pipeline-run CONTEXT=<context>` | run the enabled automated gates in phase order; the full output is tee'd to `pipeline-logs/<context>.log` |
 | `make model-discipline` | validate and report every escape hatch / exemption (residual risk) |
 | `make attest` | write the verification attestation for the context (`ATTEST=path`) |
 | `make attest-check` | fail if the recorded attestation drifted from the spec (`ATTEST=path`) |

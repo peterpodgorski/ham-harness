@@ -10,6 +10,9 @@
 # Quint/Apalache byproducts (quint verify)
 _apalache-out/
 
+# Full pipeline-run logs (tee of the terminal output)
+pipeline-logs/
+
 # Python tooling artifacts
 __pycache__/
 *.pyc

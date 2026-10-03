@@ -309,7 +309,13 @@ def cmd_plan(registry: dict, profiles: dict, context: str) -> int:
     return 0
 
 
-def cmd_run(registry: dict, profiles: dict, context: str, report: Path | None) -> int:
+def cmd_run(
+    registry: dict,
+    profiles: dict,
+    context: str,
+    report: Path | None,
+    log: Path | None,
+) -> int:
     resolved, problems = resolve(context, registry, profiles)
     if problems:
         for p in problems:
@@ -317,15 +323,30 @@ def cmd_run(registry: dict, profiles: dict, context: str, report: Path | None) -
         print(f"\nFAIL: cannot resolve {context}.")
         return 1
 
+    # The terminal is volatile: a closed window loses a 20-minute run. Tee the
+    # whole run to a file so the failure detail is always on disk.
+    log_path = log or (ROOT / "pipeline-logs" / f"{context}.log")
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    log_file = log_path.open("w", encoding="utf-8")
+
+    def emit(text: str = "") -> None:
+        print(text)
+        log_file.write(text + "\n")
+        log_file.flush()
+
     gates = registry["gates"]
     plan = ordered_enabled(registry, resolved)
     results: list[tuple[str, str, float, int | None]] = []
+
+    emit(f"pipeline: {context}")
+    emit(f"phases:   {' -> '.join(registry['phases'])}")
+    emit(f"log:      {log_path}")
 
     for gate, spec, phase in plan:
         kind = spec.get("kind", "automated")
         header = f"[{phase}] {gate}"
         if kind == "manual":
-            print(f"\n=== {header} — MANUAL (a skill must produce the evidence) ===")
+            emit(f"\n=== {header} — MANUAL (a skill must produce the evidence) ===")
             results.append((gate, "manual", 0.0, None))
             continue
 
@@ -336,31 +357,51 @@ def cmd_run(registry: dict, profiles: dict, context: str, report: Path | None) -
         for pname, value in resolved["gates"][gate]["params"].items():
             env[f"PIPELINE_PARAM_{pname.upper()}"] = str(value)
 
-        print(f"\n=== {header} — {spec.get('description', '')} ===")
+        emit(f"\n=== {header} — {spec.get('description', '')} ===")
         started = time.monotonic()
-        proc = subprocess.run(
-            ["bash", "-c", spec["command"]], cwd=ROOT, env=env
+        # Stream the gate's output live to the terminal *and* the log. Capturing
+        # (rather than inheriting) is what lets us tee; reading line by line
+        # keeps a long gate observable instead of buffering until it exits.
+        proc = subprocess.Popen(
+            ["bash", "-c", spec["command"]],
+            cwd=ROOT,
+            env=env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1,
         )
+        assert proc.stdout is not None
+        for line in proc.stdout:
+            sys.stdout.write(line)
+            sys.stdout.flush()
+            log_file.write(line)
+            log_file.flush()
+        returncode = proc.wait()
         elapsed = time.monotonic() - started
-        status = "pass" if proc.returncode == 0 else "FAIL"
-        print(f"--- {header}: {status} ({elapsed:.1f}s)")
-        results.append((gate, status, elapsed, proc.returncode))
+        status = "pass" if returncode == 0 else "FAIL"
+        emit(f"--- {header}: {status} ({elapsed:.1f}s)")
+        results.append((gate, status, elapsed, returncode))
 
     failed = [r for r in results if r[1] == "FAIL"]
-    print("\n=== pipeline summary ===")
+    emit("\n=== pipeline summary ===")
     for gate, status, elapsed, _ in results:
         suffix = f"{elapsed:.1f}s" if status != "manual" else "manual"
-        print(f"  {status:<5} {gate:<20} {suffix}")
+        emit(f"  {status:<5} {gate:<20} {suffix}")
 
     if report:
         report.write_text(render_report(context, results))
-        print(f"\nreport: {report}")
+        emit(f"\nreport: {report}")
+    emit(f"log: {log_path}")
 
     if failed:
-        print(f"\nFAIL: {len(failed)} gate(s) failed for {context}.")
-        return 1
-    print(f"\nPASS: pipeline for {context} completed.")
-    return 0
+        emit(f"\nFAIL: {len(failed)} gate(s) failed for {context}.")
+        code = 1
+    else:
+        emit(f"\nPASS: pipeline for {context} completed.")
+        code = 0
+    log_file.close()
+    return code
 
 
 def render_report(context: str, results: list[tuple]) -> str:
@@ -393,6 +434,11 @@ def main() -> int:
     p_run = sub.add_parser("run", help="run the resolved automated gates")
     p_run.add_argument("--context", required=True)
     p_run.add_argument("--report", type=Path)
+    p_run.add_argument(
+        "--log",
+        type=Path,
+        help="tee the full run here (default pipeline-logs/<context>.log)",
+    )
 
     sub.add_parser("contexts", help="list discovered bounded contexts")
 
@@ -416,7 +462,7 @@ def main() -> int:
     if args.cmd == "plan":
         return cmd_plan(registry_doc, profiles_doc, args.context)
     if args.cmd == "run":
-        return cmd_run(registry_doc, profiles_doc, args.context, args.report)
+        return cmd_run(registry_doc, profiles_doc, args.context, args.report, args.log)
     return 2
 
 

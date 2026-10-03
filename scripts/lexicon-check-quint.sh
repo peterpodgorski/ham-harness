@@ -24,16 +24,13 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 APP="${APP:-app}"
 cd "${ROOT}"
 
-# TLC (and the Apalache JVM) want a throughput-oriented garbage collector;
-# without it the JVM prints "Please run the Java VM ... -XX:+UseParallelGC" and
-# checks with a stop-the-world collector. Quint spawns the JVMs, so the option
-# rides in through the environment, and both the direct `verify` and the
-# vacuity subprocess inherit it. Preserve anything the caller/container set.
-if [[ -n "${JAVA_TOOL_OPTIONS:-}" ]]; then
-  export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS} -XX:+UseParallelGC"
-else
-  export JAVA_TOOL_OPTIONS="-XX:+UseParallelGC"
-fi
+# NOTE: do not set JAVA_TOOL_OPTIONS=-XX:+UseParallelGC here. Quint's TLC
+# backend first spawns the Apalache JVM (dist/src/tlc.js -> apalache.jar), which
+# already selects a collector; an environment-level GC flag makes that JVM die
+# with "Multiple garbage collectors selected", so the whole gate fails before
+# TLC runs. TLC's "Please run the Java VM ... -XX:+UseParallelGC" line is a
+# performance hint, not an error, and Quint spawns the TLC JVM internally
+# (dist/src/tlc.js) with no hook to pass JVM arguments.
 
 MAX_STEPS=20
 MAX_SAMPLES=300

@@ -22,9 +22,10 @@ state, not memory. Delete it when the list is empty._
 ## Next
 
 - [ ] **Run the slow gates** — `make pipeline-run CONTEXT=expense_tracking`.
-      The lexicon annotations were the only app-spec change; this confirms the
-      model/Alloy/MBT gates still pass. If one fails → `/anchor formalize
-      <story>` and fix.
+      The full run is tee'd to `pipeline-logs/expense_tracking.log`, so a
+      failing gate's detail survives a closed terminal. The lexicon annotations
+      were the only app-spec change; this confirms the model/Alloy/MBT gates
+      still pass. If one fails → `/anchor formalize <story>` and fix.
 - [ ] **Record the human review depth** (the gauge is unset until then):
       `scripts/attest.sh emit --context expense_tracking --reviewed-through <layer> \
          --out app/attestations/expense_tracking.json`
