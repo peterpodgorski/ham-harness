@@ -24,6 +24,17 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 APP="${APP:-app}"
 cd "${ROOT}"
 
+# TLC (and the Apalache JVM) want a throughput-oriented garbage collector;
+# without it the JVM prints "Please run the Java VM ... -XX:+UseParallelGC" and
+# checks with a stop-the-world collector. Quint spawns the JVMs, so the option
+# rides in through the environment, and both the direct `verify` and the
+# vacuity subprocess inherit it. Preserve anything the caller/container set.
+if [[ -n "${JAVA_TOOL_OPTIONS:-}" ]]; then
+  export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS} -XX:+UseParallelGC"
+else
+  export JAVA_TOOL_OPTIONS="-XX:+UseParallelGC"
+fi
+
 MAX_STEPS=20
 MAX_SAMPLES=300
 
