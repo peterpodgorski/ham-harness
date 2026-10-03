@@ -23,6 +23,7 @@ profiles:
     model_behaviour: true
     scenario_coverage: true
     model_structure: true
+    model_discipline: true
     property: true
     mbt_behaviour: true
     mbt_structure: true

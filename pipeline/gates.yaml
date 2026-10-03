@@ -71,6 +71,20 @@ gates:
     applies: "app/architecture/{context}/domain.als"
     command: "scripts/alloy-check.sh"
 
+  model_discipline:
+    phase: formalize
+    description: Escape hatches and exemptions are declared, shaped and justified
+    cost: fast
+    depends: [vocabulary]
+    params:
+      require_reason:
+        type: boolean
+        default: false
+      strict_exemptions:
+        type: boolean
+        default: false
+    command: "scripts/model-discipline.sh"
+
   property:
     phase: bdd
     description: Property tests exercise invariants over generated inputs

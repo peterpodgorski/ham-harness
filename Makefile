@@ -39,7 +39,8 @@ CONTAINER_RUN = test -n "$(APP_REPO)" || { echo "APP_REPO is not set; point it a
 .PHONY: build-pi run-pi run-release test-bdd test lexicon-check \
 	lexicon-check-quint lexicon-conformance alloy-check alloy-catalog \
 	scenario-coverage mbt-alloy mbt-quint arch-class arch-class-diff arch-db \
-	pipeline-check pipeline-plan pipeline-run restructure-check
+	pipeline-check pipeline-plan pipeline-run restructure-check \
+	model-discipline attest attest-check
 
 build-pi: ## Build the pi agent image (containers/Containerfile.pi)
 	$(PODMAN) build -t $(IMAGE) -f containers/Containerfile.pi .
@@ -101,3 +102,15 @@ pipeline-run: ## Run the configured automated gates for CONTEXT=<context>
 
 restructure-check: ## Verify stories/ and lexicon/ are unchanged (architecture-scope refactor invariant)
 	$(CONTAINER_RUN) scripts/restructure-check.sh
+
+model-discipline: ## Report and validate every escape hatch / exemption (residual risk)
+	$(CONTAINER_RUN) scripts/model-discipline.sh
+
+# Measurement and result are app artifacts; the logic is harness tooling.
+ATTEST ?= app/attestations/$(CONTEXT).json
+
+attest: ## Write the verification attestation into the app (ATTEST=path)
+	$(CONTAINER_RUN) scripts/attest.sh emit --context $(CONTEXT) --out $(ATTEST)
+
+attest-check: ## Verify the app's recorded attestation matches the spec (ATTEST=path)
+	$(CONTAINER_RUN) scripts/attest.sh check --context $(CONTEXT) --attestation $(ATTEST)

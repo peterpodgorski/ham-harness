@@ -56,6 +56,7 @@ checked at three gates:
 | `/formalize` | `make lexicon-check-quint` | every Quint action maps to a step or is `system`; every invariant is owned by a term and is falsifiable (not vacuous) |
 | `/formalize` | `make scenario-coverage` | every non-`system` Quint action is exercised by some scenario in its story's features, and every scenario replays as an enabled model path (`quint test`); template-level, with reasoned exemptions for model-internal actions and not-yet-modelled scenarios |
 | `/formalize` | `make alloy-check` | every Alloy sig/field/check/witness maps to a term; the category catalog is rendered from the conformance oracle (`make alloy-catalog`) and current; no `Int` arithmetic; invariants hold and witnesses are reachable (`expect`); every non-exempt check is falsifiable |
+| `/formalize` | `make model-discipline` | every `system` declaration and every coverage/trace/vacuity exemption is declared and shaped (a `system` action may not also map to a step; a `system` mapping needs a closed `kind` and a non-empty `reason`); each is reported as residual risk |
 | `/bdd` | `make lexicon-conformance` | every declared relation matches the read module across generated inputs |
 
 `make` targets are the **user's** interface. The agent must not invoke `make`
@@ -94,6 +95,9 @@ are always listed and are enforced by their skill.
 | `make pipeline-check` | validate the registry, profiles and every context config |
 | `make pipeline-plan CONTEXT=<context>` | print the resolved gate set (phase, kind, cost, source) |
 | `make pipeline-run CONTEXT=<context>` | run the enabled automated gates in phase order |
+| `make model-discipline` | validate and report every escape hatch / exemption (residual risk) |
+| `make attest` | write the verification attestation for the context (`ATTEST=path`) |
+| `make attest-check` | fail if the recorded attestation drifted from the spec (`ATTEST=path`) |
 
 Registered gates:
 
@@ -102,6 +106,7 @@ Registered gates:
 | `vocabulary` | gherkin | yes | auto | — | lexicon checker |
 | `model_behaviour` | formalize | no | auto | vocabulary | Quint + lexicon checker |
 | `model_structure` | formalize | no | auto | vocabulary | Alloy + lexicon checker |
+| `model_discipline` | formalize | no | auto | vocabulary | lexicon escape-hatch checker |
 | `acceptance` | bdd | yes | auto | vocabulary | Cucumber |
 | `derived_conformance` | bdd | yes | auto | vocabulary | conformance harness |
 | `property` | bdd | no | auto | — | property engine |
@@ -144,12 +149,21 @@ Registered gates:
   (`check … expect 0`), reachable witnesses (`run … expect 1`), vocabulary
   conformance, catalog/oracle agreement, no `Int` arithmetic, and a vacuity
   gate that falsifies every non-exempt check with a lexicon corruption.
+- I record every **escape hatch** from the traceability chain — a `system`
+  action no step exercises, a scenario exemption, an Alloy system field, a
+  vacuity exemption — and run the discipline gate (`make model-discipline`).
+  The shape is always enforced (a `system` action may not also map to a step; a
+  `system` mapping needs a closed `kind` and a non-empty `reason`; an exemption
+  needs a non-empty reason), and each escape hatch is reported as residual risk,
+  so a green gate never hides an undeclared skip. A context may raise the bar to
+  require a reason on every `system: true` and exemption via the gate params
+  `require_reason` / `strict_exemptions`.
 - **Output:** `stories/<name>/formal/*.qnt` (**the** formal spec — there is no
   Markdown transcription), `stories/<name>/formal-report.md` (raw
   Quint/Apalache/TLC output), edits to `architecture/<context>/domain.als`.
 - **Gate:** `formal-report.md` PASS, `make lexicon-check-quint` PASS,
-  `make scenario-coverage` PASS **and** `make alloy-check` PASS, before
-  architecture or code is generated.
+  `make scenario-coverage` PASS, `make alloy-check` PASS **and**
+  `make model-discipline` PASS, before architecture or code is generated.
 
 ### 4. `/explain` — `EXPLAIN PLAN` (Pre-Implementation)
 - I update the **living C4 model** (`architecture/c4/context.md`,
@@ -233,9 +247,50 @@ Registered gates:
 - **Gate:** `make restructure-check` PASS (stories + lexicon unchanged) and the
   context's enabled gates PASS.
 
+## Verification attestation
+
+The pipeline selects a verification *depth* per context — the resolved gate
+set. A story may stop at any rung of the gradient (Gherkin, the lexicon, the
+formal models, the code), but the choice should be a recorded fact, not a
+private judgement.
+
+`make attest` computes a content digest over the context's semantic inputs
+(the lexicon and its imports, the story features, the formal models, the Alloy
+domain model, and the pipeline configuration that selects the gates), records
+the resolved gate set and the deepest machine-checked layer, and writes a JSON
+attestation into the **app** at `ATTEST` (default
+`app/attestations/<context>.json`), so the record travels with the artifact and
+can gate the app's CI. The **logic is harness tooling and app-agnostic**; the
+app owns the policy and the result. An optional policy file at
+`app/architecture/<context>/attestation.yaml` declares `reviewed_through` and
+`minimum_from_threat` (CLI flags override it). The trailer form
+(`scripts/attest.sh emit --format trailer`) is what a commit can cite:
+`Verified-Through`, `Spec-Digest`, `Pipeline`. `make attest-check` recomputes
+the attestation and fails if the digest or the gate set drifted, so a later
+spec edit that invalidates already-shipped code is detectable. It is the same
+discipline `/restructure` applies by freezing the semantic inputs
+byte-for-byte.
+
+The human-review depth can be recorded too (`--reviewed-through`) and compared
+with the minimum a story's threat narrative demands (`--minimum-from-threat`);
+the result is the `review_depth_ok` field. The gauge can be ignored, but it can
+no longer be silent.
+
 ## Principles
 
 - **No anonymous complexity.** Everything is named and narrated before it exists.
+- **Stochastic generation, deterministic verification.** The agent proposes the
+  lexicon, the models and the code; the checkers dispose. Because verification is
+  deterministic, a failed candidate is regenerated rather than patched, and a
+  passing model is a *filter* — a consistent completion, not a proof of fidelity
+  to intent. Fidelity to intent stays a human gate at the Gherkin and the
+  lexicon.
+- **The code is a rebuildable projection.** The implementation is a derived
+  artifact; the spec, the models and the lexicon are the source of truth. When
+  the code drifts from the anchor, regenerate it under the fixed spec and the
+  deterministic checks rather than moving the anchor to match the code.
+  Regeneration is safe only because the checks exist, and discoveries are folded
+  back into the spec so the anchor's known-knowns grow.
 - **Executable artifacts are the source of truth.** The `.qnt` model is the
   behavioural spec, the `.als` model is the structural spec, and the Gherkin is
   the acceptance spec; there is no hand-written transcription to drift. Prose
@@ -248,3 +303,7 @@ Registered gates:
 - **Architecture is a verb.** We design (from a proven spec), then build, then reconcile.
 - **Security is a hard gate, not a checkbox.** The artifact is not "done" until the security audit passes.
 - **Formal methods are not optional.** The behavioural spec is proven consistent before architecture, the structural domain model is proven consistent and inhabited, the lexicon relations are checked against the read module, and the implementation is checked for refinement (behaviour via Quint MBT, structure via Alloy MBT) before delivery.
+- **Residual risk is declared, not hidden.** Every escape hatch from the
+  traceability chain is reported by `make model-discipline`, and every
+  verification run can be attested (`make attest`), so a green gate means
+  "checked", not "nothing was skipped".
