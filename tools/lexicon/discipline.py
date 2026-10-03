@@ -52,8 +52,12 @@ import yaml
 
 
 # A closed set of model-internal reasons. An action declared `system` must be
-# one of these (or justify itself with a reason the reviewer can read).
-SYSTEM_KINDS = ("init", "noop", "fixture")
+# one of these (or justify itself with a reason the reviewer can read):
+#   init      initializes the model state
+#   scaffold  a model-internal transition helper (e.g. the `any { ... }` step)
+#   noop      an explicit non-observable action
+#   fixture   seeds domain data that the story's Gherkin seeds another way
+SYSTEM_KINDS = ("init", "scaffold", "noop", "fixture")
 
 
 class ConfigError(Exception):
