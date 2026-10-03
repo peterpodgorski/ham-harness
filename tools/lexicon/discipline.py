@@ -27,7 +27,11 @@ not judge whether an action is really infrastructure, only that the claim is
 declared and consistent.
 
 `--require-reason` and `--strict-exemptions` let a context raise the bar from
-"declared" to "justified" without changing this tool.
+"declared" to "justified". `--require-reason` applies to Quint behavioural
+actions — the place where a mislabelled action becomes invisible to coverage.
+Alloy `system` declarations are *structural placeholders* (State fields and
+MBT bookkeeping); they are shape-checked and reported, but a per-field reason
+would be noise, so they are not required to carry one.
 
 Usage:
     discipline.py --context expense_tracking
@@ -200,6 +204,9 @@ def scan_quint_spec(spec_key: str, entry: dict, require_reason: bool, strict_exe
 
 
 def scan_alloy_spec(spec_key: str, entry: dict, require_reason: bool, strict_exemptions: bool):
+    """Alloy `system` declarations are structural placeholders, not
+    behavioural escape hatches: they are shape-checked but never required to
+    carry a reason (`require_reason` is accepted for API symmetry)."""
     problems: list[str] = []
     system_sigs: list[dict] = []
     system_fields: list[dict] = []
@@ -210,7 +217,7 @@ def scan_alloy_spec(spec_key: str, entry: dict, require_reason: bool, strict_exe
         where = f"alloy {spec_key}: sig {name!r}"
         if not decl.get("system") and not decl.get("term"):
             problems.append(f"{where}: must declare `term` or `system`")
-        p, risk = check_system(where, decl, require_reason)
+        p, risk = check_system(where, decl, require_reason=False)
         problems += p
         if risk:
             system_sigs.append({"name": name, **risk})
@@ -221,7 +228,7 @@ def scan_alloy_spec(spec_key: str, entry: dict, require_reason: bool, strict_exe
             where = f"alloy {spec_key}: field {sig}.{fname}"
             if not decl.get("system") and not decl.get("term"):
                 problems.append(f"{where}: must declare `term` or `system`")
-            p, risk = check_system(where, decl, require_reason)
+            p, risk = check_system(where, decl, require_reason=False)
             problems += p
             if risk:
                 system_fields.append({"sig": sig, "field": fname, **risk})

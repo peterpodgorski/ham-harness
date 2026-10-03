@@ -156,8 +156,10 @@ Registered gates:
   `system` mapping needs a closed `kind` and a non-empty `reason`; an exemption
   needs a non-empty reason), and each escape hatch is reported as residual risk,
   so a green gate never hides an undeclared skip. A context may raise the bar to
-  require a reason on every `system: true` and exemption via the gate params
-  `require_reason` / `strict_exemptions`.
+  require a reason on every Quint `system` action and every exemption via the
+  gate params `require_reason` / `strict_exemptions`. (Alloy `system`
+  declarations are structural placeholders — `State` fields and MBT bookkeeping —
+  so they are shape-checked and reported, but a per-field reason would be noise.)
 - **Output:** `stories/<name>/formal/*.qnt` (**the** formal spec — there is no
   Markdown transcription), `stories/<name>/formal-report.md` (raw
   Quint/Apalache/TLC output), edits to `architecture/<context>/domain.als`.

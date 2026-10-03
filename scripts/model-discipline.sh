@@ -10,7 +10,10 @@
 # Whether a *bare* `system: true` or an un-reasoned exemption is fatal is a
 # per-context policy, set through the gate params:
 #
-#   PIPELINE_PARAM_REQUIRE_REASON    fail on `system: true` without a reason
+#   PIPELINE_PARAM_REQUIRE_REASON    fail on a Quint `system` action without a
+#                                    reason (Alloy `system` declarations are
+#                                    structural placeholders: reported, never
+#                                    required to carry a reason)
 #   PIPELINE_PARAM_STRICT_EXEMPTIONS fail on an exemption without a reason
 #
 # The JSON manifest is the residual-risk record a commit can cite:
