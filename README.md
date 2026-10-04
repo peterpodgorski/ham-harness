@@ -15,18 +15,22 @@ non-deterministic step with a mechanical, replayable check.
 ## Status
 
 HAM is an experiment, developed alongside a single reference app (a household
-budgeting ledger) that exercises it end to end. The process, the gate registry,
-and the attestation mechanism are stable enough to run in CI; the skill set and
-the per-context profiles are still moving. Expect the shape of the harness to
-change as more of the reference app is put through it.
+budgeting app) that exercises it end to end.
 
-**HAM was not created using HAM**. Obviously. HAM was essentially vibe coded and "the
-proof is in the pudding" of the app I'm writing using it. The app is very small
-and simple, but the point here is an experiment bordering on proof of concept,
-not a production-grade tool for engineering nuclear power plant control systems.
-**You've been warned**.
-That said, developing HAM with HAM is a natural future step, although there are some
-changes that need to happen before it's possible without creating a singularity.
+**HAM was not created using HAM**. Obviously. But it was also not created using 
+any structured process, which is extremely ironic, and that irony is not lost on me.
+
+It grew organically, as a bunch of scripts, through "what if I also did X?".
+Think of it as a spike. The point here is an experiment, bordering on proof of 
+concept, not a production-grade tool for engineering nuclear power plant control
+systems.
+
+That said, re-writing HAM with HAM is a natural future step.
+
+## The name
+
+Ham goes well with [cheese](https://en.wikipedia.org/wiki/Swiss_cheese_model)... is
+an after the fact justification I decided makes sense.
 
 ## The problem
 
