@@ -11,7 +11,10 @@ That naming is the **anchor**.
 
 - **No mutation without an anchor.** Before you `write`, `edit`, or run a
   mutating `bash` command, resolve an anchor:
-  `(stage, context, stories[], artifact)`.
+  `(stage, context, stories[], artifact)`. **Committing is the exception:**
+  `git add`/`commit`/`tag` (alone, or with read-only commands) only touch the
+  index and refs, so they are allowed at any stage and without an anchor. A
+  commit snapshots already-anchored work; it never needs a stage of its own.
 - **Name every story you will touch.** The first is primary; the rest are
   stories this work also changes. Realising one story often demands a change to
   another — that is still one anchor, not a licence to work unanchored. A write

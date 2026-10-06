@@ -425,6 +425,26 @@ function firstWord(segment: string): string | undefined {
 	return tokens[i];
 }
 
+/**
+ * The subcommand of a `git ...` invocation, skipping global options — including
+ * ones that take a separate value (`-C <path>`, `-c <name=value>`,
+ * `--git-dir <path>`), whose argument must not be mistaken for the subcommand.
+ */
+const GIT_VALUE_FLAGS = new Set(["-C", "-c", "--git-dir", "--work-tree", "--namespace"]);
+function gitSubcommand(tokens: string[]): string | undefined {
+	for (let i = 0; i < tokens.length; i++) {
+		const t = tokens[i];
+		if (t === "--") return undefined;
+		if (t.startsWith("-")) {
+			// `--opt=value` carries its value inline; a value flag consumes the next.
+			if (!t.includes("=") && GIT_VALUE_FLAGS.has(t)) i++;
+			continue;
+		}
+		return t;
+	}
+	return undefined;
+}
+
 function writesFile(segment: string): boolean {
 	// Any redirection other than fd duplication (`2>&1`) or `/dev/null`.
 	const re = /(?<![0-9])>>?(?!&)\s*([^\s|;&]+)/g;
@@ -460,6 +480,48 @@ function isMutatingBash(command: string): boolean {
 		if (!segmentIsReadOnly(segment)) return true;
 	}
 	return false;
+}
+
+/**
+ * `git` subcommands that only snapshot or stage state the working-tree guard
+ * already governs (index and refs), never the content of a tracked file on
+ * disk. Committing is bookkeeping over work that was itself anchored when it
+ * was written, so it is allowed at any stage and without an anchor.
+ */
+const GIT_BOOKKEEPING = new Set(["add", "commit", "tag"]);
+
+/**
+ * True when the command is *nothing but* git bookkeeping (`git add`/`commit`/
+ * `tag`), optionally with env-var prefixes and shell chaining, plus read-only
+ * commands that may surround it (e.g. `git status && git add -A && git
+ * commit`). A command that also runs anything mutating is not bookkeeping and
+ * is handled by the normal anchor rules.
+ */
+function isGitBookkeepingOnly(command: string): boolean {
+	let sawBookkeeping = false;
+	for (const raw of command.split(/\|\||&&|[|;]|\n/)) {
+		const segment = raw.trim();
+		if (!segment) continue;
+		if (writesFile(segment)) return false;
+		const tokens = segment.split(/\s+/);
+		let i = 0;
+		while (i < tokens.length && /^[A-Za-z_][A-Za-z0-9_]*=/.test(tokens[i])) i++;
+		const word = tokens[i];
+		if (word === "git") {
+			const sub = gitSubcommand(tokens.slice(i + 1));
+			if (sub !== undefined && GIT_BOOKKEEPING.has(sub)) {
+				sawBookkeeping = true;
+				continue;
+			}
+			// A read-only git segment (status/diff/log/…) may surround the
+			// bookkeeping; any other git subcommand is not bookkeeping.
+			if (sub !== undefined && GIT_READ_ONLY.has(sub)) continue;
+			return false;
+		}
+		// Non-git segments must be read-only (e.g. `git status`, `echo done`).
+		if (!segmentIsReadOnly(segment)) return false;
+	}
+	return sawBookkeeping;
 }
 
 function isMutating(toolName: string, input: Record<string, unknown>): boolean {
@@ -529,6 +591,15 @@ export default function processGate(pi: ExtensionAPI) {
 	pi.on("tool_call", async (event, ctx) => {
 		const input = event.input as Record<string, unknown>;
 		if (!isMutating(event.toolName, input)) return undefined;
+
+		// Committing is bookkeeping over already-anchored work: `git add`/
+		// `commit`/`tag` only touch the index and refs, never a tracked file's
+		// content (which the working-tree guard already governs). Allow it at any
+		// stage and without an anchor, so a commit never has to fabricate a stage.
+		if (event.toolName === "bash" && isGitBookkeepingOnly(String(input.command ?? ""))) {
+			return undefined;
+		}
+
 		if (!anchor) return { block: true, reason: REFUSAL };
 
 		// The architectural refactor freezes the app's semantic inputs: the

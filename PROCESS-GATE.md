@@ -108,6 +108,13 @@ Three layers, from soft to hard:
      upstream artifacts are reported. A new story is only accepted at
      `story-map`. Multiple stories are accepted; the first is primary.
    - `tool_call` blocks unanchored `write`/`edit` and mutating `bash`, fail-safe.
+   - **Committing is exempt.** `git add`/`commit`/`tag` (alone, or surrounded by
+     read-only commands) only touch the index and refs — never a tracked file's
+     content, which the working-tree guard already governs. A commit is
+     bookkeeping over work that was anchored when it was written, so it is
+     allowed at any stage and **without an anchor**; a commit never has to
+     fabricate a stage. A command that also runs anything mutating is not
+     bookkeeping and is gated normally.
    - A `write`/`edit` under `app/stories/<X>/` is also blocked when `<X>` is not
      in the anchor (and neither `harness` nor `restructure` ever covers story
      paths). Under `restructure`, `app/lexicon/` is frozen as well, and a
@@ -129,7 +136,9 @@ With no anchor set (verified against this repo):
 | `find … 2>/dev/null \| head` | allowed |
 | `rm -rf app` | **blocked** |
 | `cargo test` | **blocked** |
-| `git commit -m x` | **blocked** |
+| `git commit -m x` | allowed (bookkeeping; see above) |
+| `git add -A && git commit -m x` | allowed (bookkeeping) |
+| `git commit -m x && rm -rf app` | **blocked** (not bookkeeping only) |
 | `echo hi > foo` | **blocked** |
 | `write` / `edit` | **blocked** |
 | `read` | allowed |
